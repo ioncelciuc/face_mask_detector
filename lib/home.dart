@@ -1,6 +1,7 @@
 import 'package:camera/camera.dart';
 import 'package:face_mask_detector/main.dart';
 import 'package:flutter/material.dart';
+import 'package:tflite/tflite.dart';
 
 class Home extends StatefulWidget {
   @override
@@ -28,16 +29,55 @@ class _HomeState extends State<Home> {
                 {
                   isWorking = true,
                   cameraImage = image,
+                  runModelOnFrame(),
                 }
             });
       });
     });
   }
 
+  void loadModel() async {
+    Tflite.loadModel(
+      model: 'assets/model.tflite',
+      labels: 'assets/labels.txt',
+    );
+  }
+
+  void runModelOnFrame() async {
+    if (cameraImage != null) {
+      var recognitions = await Tflite.runModelOnFrame(
+        bytesList: cameraImage.planes.map((plane) {
+          return plane.bytes;
+        }).toList(),
+        imageHeight: cameraImage.height,
+        imageWidth: cameraImage.width,
+        imageMean: 127.5,
+        imageStd: 127.5,
+        rotation: 90,
+        numResults: 1,
+        threshold: 0.1,
+        asynch: true,
+      );
+
+      result = '';
+
+      recognitions.forEach((response) {
+        result += response['label'] + '\n';
+      });
+
+      setState(
+        () {},
+      );
+
+      isWorking = false;
+    }
+  }
+
   @override
   void initState() {
     super.initState();
     initCamera(activeCamera);
+    loadModel();
   }
 
   @override
@@ -52,21 +92,33 @@ class _HomeState extends State<Home> {
       floatingActionButton: Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          FloatingActionButton(
-            child: Icon(Icons.flip_camera_ios_rounded),
-            onPressed: () {
-              setState(() {
-                if (activeCamera == 0)
-                  activeCamera = 1;
-                else
-                  activeCamera = 0;
-                isFlashOn = false;
-                initCamera(activeCamera);
-              });
-            },
+          Expanded(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  result,
+                  style: TextStyle(fontSize: 20),
+                ),
+              ],
+            ),
           ),
-          SizedBox(width: 16),
+          // FloatingActionButton(
+          //   heroTag: 'change_camera',
+          //   child: Icon(Icons.flip_camera_ios_rounded),
+          //   onPressed: () {
+          //     setState(() {
+          //       if (activeCamera == 0)
+          //         activeCamera = 1;
+          //       else
+          //         activeCamera = 0;
+          //       isFlashOn = false;
+          //       initCamera(activeCamera);
+          //     });
+          //   },
+          // ),
           FloatingActionButton(
+            heroTag: 'flash',
             child: Icon(isFlashOn ? Icons.flash_on : Icons.flash_off),
             onPressed: () {
               setState(() {
